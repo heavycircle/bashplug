@@ -1,0 +1,253 @@
+#!/usr/bin/env bash
+
+# bashplug -- A bash plugin manager.
+#
+# bashplug expects a list of plugins to enable by default
+# every time the binary is sourced.
+#
+# Author: heavycircle
+# Date: August 08, 2025
+# License: MIT
+
+BASHPLUG_VERSION="v0.1.0"
+
+###############################################
+#                                             #
+# VERSION INFORMATION                         #
+#                                             #
+###############################################
+
+# Print the usage for this program.
+usage() {
+    echo -e "$(basename $0)"
+    echo
+    echo "Bash Plugin Manager."
+    echo
+    exit 1
+}
+
+# Version information
+version() {
+    echo "bashplug $BASHPLUG_VERSION"
+    echo
+    exit 0
+}
+
+###############################################
+#                                             #
+# LOGGERS                                     #
+#                                             #
+###############################################
+
+fatal() {
+    echo -e "[\033[31m-\033[0m] $1"
+    exit 1
+}
+
+debug() {
+    [[ -n "$BP_DEBUG" ]] || return
+    echo -e "[\033[32m+\033[0m] $1"
+}
+
+###############################################
+#                                             #
+# SELF FUNCTIONS                              #
+#                                             #
+###############################################
+
+# Initialize bashplug.
+self-init() {
+    echo "init ..."
+}
+
+# Update bashplug.
+self-update() {
+    debug "Fetching latest updates . . ."
+
+    debug "bashplug updated!"
+}
+
+###############################################
+#                                             #
+# PLUGIN FUNCTIONS                            #
+#                                             #
+###############################################
+
+# Get the key environment variables.
+plug-env() {
+    declare -g BP_HOME=~/.bashplug
+    readonly BP_HOME
+
+    # Plugin folders
+    declare -g BP_ARCHIVE="$BP_HOME"/plugins/.archive
+    declare -g BP_DEFAULT="$BP_HOME"/plugins/default
+    declare -g BP_CUSTOM="$BP_HOME"/plugins/custom
+    declare -g BP_PRIVATE="$BP_HOME"/plugins/private
+
+    # Other folders
+    declare -g BP_LIB="$BP_HOME"/lib
+    declare -g BP_SCRIPTS="$BP_HOME"/scripts
+
+    # Track loaded libraries
+    declare -gA BP_LOADED
+}
+
+# The API required by functions to get a library item.
+#
+# This method will check the global library ($BP_LIB), then
+# the script's local directory for that file. We track the
+# already-sourced libraries to avoid sourcing files more
+# than required.
+plug-require() {
+    local name="$1" path=""
+    [[ -n "$name" ]] || fatal "require: missing library name"
+
+    # Check if we're already loaded
+    [[ -n "${BP_LOADED[$name]}" ]] && return 0
+
+    # Resolution order
+    local candidates=(
+        "$BP_LIB"/"$name".bash              # Global library
+        "${BASH_SOURCE[1]%/*}"/"$name".bash # Plugin-local library
+    )
+
+    # Find the library and source
+    for path in "${candidates[@]}"; do
+        if [[ -f "$path" ]]; then
+            source "$path" || fatal "require: failed to source $name"
+            BP_LOADED["$name"]=1
+            return 0
+        fi
+    done
+
+    # Did not exist
+    fatal "require: no such library: $name"
+}
+
+# List the available plugins.
+plug-list() {
+    echo "Enabled Plugins"
+}
+
+# Setup plugins
+plug-init() {
+    # Set environment
+    plug-env
+
+    # Enable each plugin
+    for plug in "$@"; do
+        plug-enable "$plug"
+    done
+}
+
+# Install a plugin from GitHub.
+plug-install() {
+    [[ -n "$1" ]] || fatal "Repository must not be blank!"
+
+    cd "$BP_CUSTOM" || return $?
+    git clone "$@"
+}
+
+# Update one (or all) plugins.
+plug-update() {
+    debug "Updating: $@"
+}
+
+# Enable a plugin.
+plug-enable() {
+    # Verify argument
+    [[ -n "$1" ]] || fatal "enable: Missing argument"
+    debug "Finding: $1"
+
+    # Look for the plugin
+    local type found=0
+    for type in "$BP_DEFAULT" "$BP_CUSTOM" "$BP_PRIVATE"; do
+        if [[ -d "$type"/"$1" ]]; then
+            found=1
+            debug "Found: $1"
+            break
+        fi
+    done
+
+    # Die if we didn't find it
+    ((found == 1)) || fatal "No such plugin: $1"
+
+    # Source the .bash if we did
+    debug "Enabling: $1"
+    source "$type"/"$1"/"$1".bash
+}
+
+# Disable a certain plugin.
+plug-disable() {
+    [[ -n "$1" ]] || fatal "Missing argument: disable"
+    debug "Disabling: $1"
+}
+
+# Remove a plugin.
+plug-remove() {
+    [[ -n "$1" ]] || fatal "Missing argument: remove"
+    debug "Uninstalling: $1"
+}
+
+# Get a plugin's help page.
+plug-help() {
+    [[ -n "$1" ]] || fatal "help: Missing argument"
+    debug "Getting Help: $1"
+}
+
+###############################################
+#                                             #
+# DRIVERS                                     #
+#                                             #
+###############################################
+
+# Auto-complete for bashplug.
+_bashplug() {
+    local cmd=${COMP_WORDS[1]}
+}
+
+# Main program driver.
+bashplug() {
+    set -x
+    local -a positions=()
+
+    # Parse flags
+    while (($# > 0)); do
+        case "$1" in
+            -h | --help) usage ;;
+            --version) version ;;
+            -v | --verbose) BP_DEBUG=1 ;;
+            -* | --*) fatal "Unknown argument: $1" ;;
+            *) positions+=("$1") ;;
+        esac
+        shift
+    done
+    set -- "${positions[@]}"
+
+    # Rename positionals
+    local command="$1"
+    shift
+
+    case "$command" in
+        init | list) plug-"$command" "$@" ;;
+        *) fatal "Unkown command: $command" ;;
+    esac
+
+    set +x
+}
+
+# Check if we're being sourced.
+if (return 2>/dev/null); then
+    # Get the command
+    alias bashplug=~/.bashplug/bashplug
+    complete -F _bashplug bashplug
+
+    # Run the init function
+    self-init
+    unset -f self-init
+
+    return
+fi
+
+# Now we're in an interactive session.
+bashplug "$@"
