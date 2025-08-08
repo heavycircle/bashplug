@@ -9,12 +9,10 @@
 # Date: August 08, 2025
 # License: MIT
 
-BASHPLUG_VERSION="v0.1.0"
+BASHPLUG_VERSION="v0.1.1"
 
 ###############################################
-#                                             #
 # VERSION INFORMATION                         #
-#                                             #
 ###############################################
 
 # Print the usage for this program.
@@ -34,9 +32,7 @@ version() {
 }
 
 ###############################################
-#                                             #
 # LOGGERS                                     #
-#                                             #
 ###############################################
 
 fatal() {
@@ -50,33 +46,32 @@ debug() {
 }
 
 ###############################################
-#                                             #
 # SELF FUNCTIONS                              #
-#                                             #
 ###############################################
 
 # Initialize bashplug.
 self-init() {
-    echo "init ..."
+    echo $(version)
 }
 
 # Update bashplug.
 self-update() {
     debug "Fetching latest updates . . ."
 
+    cd ~/.bashplug || return $?
+    out=$(git pull origin main)
+    debug "$out"
+
     debug "bashplug updated!"
 }
 
 ###############################################
-#                                             #
 # PLUGIN FUNCTIONS                            #
-#                                             #
 ###############################################
 
 # Get the key environment variables.
 plug-env() {
     declare -g BP_HOME=~/.bashplug
-    readonly BP_HOME
 
     # Plugin folders
     declare -g BP_ARCHIVE="$BP_HOME"/plugins/.archive
@@ -126,7 +121,30 @@ plug-require() {
 
 # List the available plugins.
 plug-list() {
-    echo "Enabled Plugins"
+    shopt -s nullglob
+    local scope="$1"
+
+    # Check scope
+    local -a dirs=()
+    case "$scope" in
+        custom) dirs+=("$BP_CUSTOM") ;;
+        default) dirs+=("$BP_DEFAULT") ;;
+        private) dirs+=("$BP_PRIVATE") ;;
+    esac
+
+    # No scope -- show everything
+    [[ -z ${dirs[@]} ]] && dirs=("$BP_CUSTOM" "$BP_DEFAULT" "$BP_PRIVATE")
+
+    # Iterate default plugins
+    local plug plugdir dirname=""
+    for plugdir in "${dirs[@]}"; do
+        dirname=${plugdir##*/}
+        echo "${dirname^} Plugins:"
+
+        for plug in "$plugdir"/*; do
+            echo "> ${plug##*/}"
+        done
+    done
 }
 
 # Setup plugins
@@ -157,14 +175,12 @@ plug-update() {
 plug-enable() {
     # Verify argument
     [[ -n "$1" ]] || fatal "enable: Missing argument"
-    debug "Finding: $1"
 
     # Look for the plugin
     local type found=0
     for type in "$BP_DEFAULT" "$BP_CUSTOM" "$BP_PRIVATE"; do
         if [[ -d "$type"/"$1" ]]; then
             found=1
-            debug "Found: $1"
             break
         fi
     done
@@ -196,9 +212,7 @@ plug-help() {
 }
 
 ###############################################
-#                                             #
 # DRIVERS                                     #
-#                                             #
 ###############################################
 
 # Auto-complete for bashplug.
@@ -208,7 +222,6 @@ _bashplug() {
 
 # Main program driver.
 bashplug() {
-    set -x
     local -a positions=()
 
     # Parse flags
@@ -228,12 +241,11 @@ bashplug() {
     local command="$1"
     shift
 
+    # Run command
     case "$command" in
         init | list) plug-"$command" "$@" ;;
         *) fatal "Unkown command: $command" ;;
     esac
-
-    set +x
 }
 
 # Check if we're being sourced.
