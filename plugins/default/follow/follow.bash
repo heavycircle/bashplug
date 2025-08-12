@@ -14,7 +14,7 @@ _follow() {
     if [[ -d "$ref" ]]; then
         cd "$ref" || return $?
     elif [[ -f "$ref" ]]; then
-        cd $(dirname "$ref") || return $? # TODO - Stop forking
+        cd "$(dirname "$ref")" || return $? # TODO - Stop forking
     else
         echo "follow: no such file or directory: $1"
     fi

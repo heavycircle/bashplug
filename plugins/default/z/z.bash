@@ -15,13 +15,13 @@ _z() {
     [ -h "$datafile" ] && datafile=$(readlink "$datafile")
 
     # bail if we don't own ~/.z and $_Z_OWNER not set
-    [ -z "$_Z_OWNER" -a -f "$datafile" -a ! -O "$datafile" ] && return
+    [[ -z "$_Z_OWNER" && -f "$datafile" && ! -O "$datafile" ]] && return
 
     _z_dirs () {
         [ -f "$datafile" ] || return
 
         local line
-        while read line; do
+        while read -r line; do
             # only count directories
             [ -d "${line%%\|*}" ] && echo "$line"
         done < "$datafile"
@@ -33,7 +33,7 @@ _z() {
         shift
 
         # $HOME and / aren't worth matching
-        [ "$*" = "$HOME" -o "$*" = '/' ] && return
+        [[ "$*" = "$HOME" || "$*" = '/' ]] && return
 
         # don't track excluded directory trees
         if [ ${#_Z_EXCLUDE_DIRS[@]} -gt 0 ]; then
@@ -46,7 +46,7 @@ _z() {
         # maintain the data file
         local tempfile="$datafile.$RANDOM"
         local score=${_Z_MAX_SCORE:-9000}
-        _z_dirs | \awk -v path="$*" -v now="$(\date +%s)" -v score=$score -F"|" '
+        _z_dirs | \awk -v path="$*" -v now="$(\date +%s)" -v score="$score" -F"|" '
             BEGIN {
                 rank[path] = 1
                 time[path] = now
@@ -70,15 +70,15 @@ _z() {
             }
         ' 2>/dev/null >| "$tempfile"
         # do our best to avoid clobbering the datafile in a race condition.
-        if [ $? -ne 0 -a -f "$datafile" ]; then
+        if [[ $? -ne 0 && -f "$datafile" ]]; then
             \env rm -f "$tempfile"
         else
-            [ "$_Z_OWNER" ] && chown $_Z_OWNER:"$(id -ng $_Z_OWNER)" "$tempfile"
+            [ "$_Z_OWNER" ] && chown "$_Z_OWNER":"$(id -ng "$_Z_OWNER")" "$tempfile"
             \env mv -f "$tempfile" "$datafile" || \env rm -f "$tempfile"
         fi
 
     # tab completion
-    elif [ "$1" = "--complete" -a -s "$datafile" ]; then
+    elif [[ "$1" = "--complete" && -s "$datafile" ]]; then
         _z_dirs | \awk -v q="$2" -F"|" '
             BEGIN {
                 q = substr(q, 3)
@@ -108,12 +108,12 @@ _z() {
                 esac; opt=${opt:1}; done;;
              *) fnd="$fnd${fnd:+ }$1";;
         esac; last=$1; [ "$#" -gt 0 ] && shift; done
-        [ "$fnd" -a "$fnd" != "^$PWD " ] || list=1
+        [[ "$fnd" && "$fnd" != "^$PWD " ]] || list=1
 
         # if we hit enter on a completion just go there
         case "$last" in
             # completions will always start with /
-            /*) [ -z "$list" -a -d "$last" ] && builtin cd "$last" && return;;
+            /*) [[ -z "$list" && -d "$last" ]] && builtin cd "$last" && return;;
         esac
 
         # no file yet

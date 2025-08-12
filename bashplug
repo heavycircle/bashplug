@@ -17,7 +17,7 @@ BASHPLUG_VERSION="v0.1.2"
 
 # Print the usage for this program.
 usage() {
-    echo -e "$(basename $0)"
+    echo -e "$(basename "$0")"
     echo
     echo "Bash Plugin Manager."
     echo
@@ -27,8 +27,6 @@ usage() {
 # Version information
 version() {
     echo "bashplug $BASHPLUG_VERSION"
-    echo
-    exit 0
 }
 
 ###############################################
@@ -51,7 +49,7 @@ debug() {
 
 # Initialize bashplug.
 self-init() {
-    echo $(version)
+    version
 }
 
 # Update bashplug.
@@ -133,7 +131,7 @@ plug-list() {
     esac
 
     # No scope -- show everything
-    [[ -z ${dirs[@]} ]] && dirs=("$BP_CUSTOM" "$BP_DEFAULT" "$BP_PRIVATE")
+    [[ -z ${dirs[*]} ]] && dirs=("$BP_CUSTOM" "$BP_DEFAULT" "$BP_PRIVATE")
 
     # Iterate default plugins
     local plug plugdir dirname=""
@@ -168,7 +166,7 @@ plug-install() {
 
 # Update one (or all) plugins.
 plug-update() {
-    debug "Updating: $@"
+    debug "Updating: $*"
 }
 
 # Enable a plugin.
@@ -230,7 +228,8 @@ bashplug() {
             -h | --help) usage ;;
             --version) version ;;
             -v | --verbose) BP_DEBUG=1 ;;
-            -* | --*) fatal "Unknown argument: $1" ;;
+            --*) fatal "Unknown argument: --$1" ;;
+            -*) fatal "Unknown argument: -$1" ;;
             *) positions+=("$1") ;;
         esac
         shift

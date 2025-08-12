@@ -36,7 +36,7 @@ detect-clipboard() {
 
     # No suitable matches
     else
-        printf "$0: Platform $OSTYPE not supported or xclip/xsel not installed" >&2
+        printf '%s: Platform %s not supported or xclip/xsel not installed' "$0" "$OSTYPE" >&2
         return 1
     fi
 }

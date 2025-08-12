@@ -12,17 +12,17 @@
 
 if command -v batcat >/dev/null; then
     # Save cat -> rcat
-    alias rcat=$(which cat)
-    alias cat=$(which batcat)
+    alias rcat='$(command -v cat)'
+    alias cat='$(command -v batcat)'
 
     # Get the man page for batcat
     export MANPAGER="sh -c 'col -bx | batcat -l man -p'"
     export MANROFFOPT="-c"
 elif command -v bat >/dev/null; then
     # Save cat -> rcat
-    alias rcat=$(which cat)
-    alias cat=$(which bat)
-    
+    alias rcat='$(command -v cat)'
+    alias cat='$(command -v bat)'
+
     # Get the man page for bat
     export MANPAGER="sh -c 'col -bx | bat -l man -p'"
     export MANROFFOPT="-c"
