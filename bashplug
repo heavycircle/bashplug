@@ -9,7 +9,7 @@
 # Date: August 08, 2025
 # License: MIT
 
-BASHPLUG_VERSION="v0.1.2"
+BASHPLUG_VERSION="v0.1.3"
 
 ###############################################
 # VERSION INFORMATION                         #
@@ -49,7 +49,9 @@ debug() {
 
 # Initialize bashplug.
 self-init() {
-    version
+    debug "$(version)"
+
+    plug-init "$@"
 }
 
 # Update bashplug.
@@ -150,8 +152,10 @@ plug-init() {
     # Set environment
     plug-env
 
+    [[ -n "${plugins[*]}" ]] || fatal "no plugins defined!"
+
     # Enable each plugin
-    for plug in "$@"; do
+    for plug in "${plugins[@]}"; do
         plug-enable "$plug"
     done
 }
@@ -254,7 +258,7 @@ if (return 2>/dev/null); then
     complete -F _bashplug bashplug
 
     # Run the init function
-    self-init
+    self-init "$@"
     unset -f self-init
 
     return
